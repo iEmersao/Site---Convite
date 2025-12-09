@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Convite para o Churrascão da Rafa — confirme presença e veja o local" />
   <title>Churras da Rafa</title>
   <style>
     body {
@@ -29,6 +30,7 @@
     @media (max-width: 600px) { h1 { font-size: 1.6rem; } .container { padding: 15px; } button { font-size: 1rem; padding: 10px; } }
     .countdown { text-align: center; font-size: 1.2rem; margin-bottom: 20px; }
     .audio-tip { text-align: center; margin: 15px 0; color: #ffb347; font-size: 1rem; }
+    .sr-only { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
   </style>
 </head>
 <body>
@@ -48,27 +50,28 @@
       📍 <strong>Endereço:</strong> Rua Georgina de Albuquerque, 196<br>
       📅 <strong>Data:</strong> 13 de Dezembro<br>
       ⏰ <strong>Horário:</strong> A partir das 19h<br><br>
-      Traga sua bebida de preferencia! 😄🍻🔥
+      Traga sua bebida de preferência! 😄🍻🔥
     </div>
 
     <!-- Mapa do local: substitua o src pelo embed correto do Google Maps para o endereço desejado -->
     <iframe
       src="https://www.google.com/maps?q=Rua+Georgina+de+Albuquerque,+196&output=embed"
-      width="100%" height="250" style="border:0; border-radius:10px; margin-bottom:20px;" allowfullscreen loading="lazy" title="Mapa do local">
+      width="100%" height="250" style="border:0; border-radius:10px; margin-bottom:20px;" allowfullscreen loading="lazy" title="Mapa do local" referrerpolicy="no-referrer-when-downgrade">
     </iframe>
 
     <!-- Música brasileira -->
+    <!-- OBS: se não houver o arquivo samba.mp3 no repositório, substitua o src por uma URL pública ou faça upload do arquivo -->
     <audio id="musica" loop preload="metadata">
       <source src="samba.mp3" type="audio/mpeg">
       Seu navegador não suporta áudio.
     </audio>
     <div class="audio-tip">
-      🎵 Da play ae:
-      <button type="button" id="play-music-btn">▶️ Play Música</button>
+      🎵
+      <button type="button" id="play-music-btn" aria-pressed="false" aria-label="Tocar música">▶️ Tocar Música</button>
     </div>
 
     <label for="nome">Seu nome:</label>
-    <input type="text" id="nome" placeholder="Digite seu nome" />
+    <input type="text" id="nome" placeholder="Digite seu nome" autocomplete="name" />
 
     <label for="presenca">Você vai?</label>
     <select id="presenca" aria-label="Presença">
@@ -83,6 +86,8 @@
 
     <h2 style="margin-bottom:10px;">Confirmações (<span id="contador">0</span>)</h2>
     <div id="lista" aria-live="polite"></div>
+
+    <noscript><p style="color:#ffd59a;">Para confirmar presença ative o JavaScript no seu navegador.</p></noscript>
   </div>
 </div>
 
@@ -145,12 +150,17 @@
 
     if (!nome) {
       alert("Coloca seu nome aí, pô! 😄");
+      document.getElementById("nome").focus();
       return;
     }
 
     const dados = JSON.parse(localStorage.getItem("confirmados")) || [];
     dados.push({ nome, presenca, recado });
-    localStorage.setItem("confirmados", JSON.stringify(dados));
+    try {
+      localStorage.setItem("confirmados", JSON.stringify(dados));
+    } catch (e) {
+      alert("Não foi possível salvar localmente. Verifique o espaço do navegador.");
+    }
 
     document.getElementById("nome").value = "";
     document.getElementById("recado").value = "";
@@ -163,6 +173,7 @@
   function apagar(index) {
     const dados = JSON.parse(localStorage.getItem("confirmados")) || [];
     if (index < 0 || index >= dados.length) return;
+    if (!confirm("Deseja realmente apagar esta confirmação?")) return;
     dados.splice(index, 1);
     localStorage.setItem("confirmados", JSON.stringify(dados));
     carregar();
@@ -191,19 +202,23 @@
   // Botão para tocar música a partir de 30s (evita bloqueio de autoplay)
   function playMusica() {
     const musica = document.getElementById("musica");
-    // Se a duração não estiver disponível, aguardar loadedmetadata
+    const btn = document.getElementById("play-music-btn");
+
     function trySeekAndPlay() {
       try {
-        if (typeof musica.duration === "number" && musica.duration > 0) {
-          musica.currentTime = Math.min(30, musica.duration);
+        if (typeof musica.duration === "number" && isFinite(musica.duration) && musica.duration > 0) {
+          // tenta pular para 30s se o arquivo for longo o suficiente
+          musica.currentTime = Math.min(30, musica.duration - 0.1);
         } else {
-          // se duration é 0 ou NaN, tenta definir 0
           musica.currentTime = 0;
         }
       } catch (e) {
         // alguns navegadores só permitem setar currentTime após metadata carregada
       }
-      musica.play().catch(() => {
+      musica.play().then(() => {
+        btn.setAttribute("aria-pressed", "true");
+        btn.textContent = "⏸️ Pausar Música";
+      }).catch(() => {
         alert("Seu navegador bloqueou o áudio. Tente clicar novamente.");
       });
     }
@@ -213,11 +228,32 @@
     } else {
       trySeekAndPlay();
     }
+
+    // toggle para pausar se já tocando
+    btn.addEventListener("click", () => {
+      if (!musica.paused) {
+        musica.pause();
+        btn.setAttribute("aria-pressed", "false");
+        btn.textContent = "▶️ Tocar Música";
+      } else {
+        // tenta tocar normalmente sem seek adicional
+        musica.play().then(() => {
+          btn.setAttribute("aria-pressed", "true");
+          btn.textContent = "⏸️ Pausar Música";
+        }).catch(() => {
+          alert("Seu navegador bloqueou o áudio. Tente clicar novamente.");
+        });
+      }
+    });
   }
 
   // Inicialização - listeners
   document.getElementById("confirm-btn").addEventListener("click", confirmar);
-  document.getElementById("play-music-btn").addEventListener("click", playMusica);
+  // Também permite confirmar com Ctrl/Cmd+Enter no campo 'recado'
+  document.getElementById("recado").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) confirmar(); });
+
+  // configura o botão de música para primeiro clique inicializador
+  document.getElementById("play-music-btn").addEventListener("click", playMusica, { once: true });
 
   carregar();
   atualizarContagemRegressiva();
