@@ -1,180 +1,101 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Churras da Rafa</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", sans-serif;
-      background: url('https://images.unsplash.com/photo-1555992336-cbf97e6f2c36?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat fixed;
-      padding: 0;
-      color: #fff;
-    }
-    .bg-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; filter: brightness(60%); }
-    .overlay { background: rgba(0,0,0,0.55); width: 100%; min-height: 100vh; padding: 20px; position: relative; z-index: 1; }
-    .container { max-width: 700px; margin: auto; background: rgba(0,0,0,0.65); padding: 25px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.6); }
-    h1 { text-align: center; font-size: 2.2rem; margin-bottom: 10px; color: #ffb347; }
-    .info { font-size: 1.1rem; margin-bottom: 20px; line-height: 1.6; }
-    label { font-weight: bold; font-size: 1.1rem; display:block; margin-top:8px; }
-    input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; margin-top: 6px; margin-bottom: 15px; font-size: 1rem; }
-    button { width: 100%; background: #ff9100; border: none; padding: 12px; color: #fff; font-size: 1.1rem; border-radius: 8px; cursor: pointer; margin-bottom: 20px; transition: 0.2s; }
-    button:hover { background: #ffa733; }
-    .card { background: rgba(255,255,255,0.12); padding: 15px; border-radius: 10px; margin-bottom: 12px; position: relative; }
-    .deleteBtn { position: absolute; top: 10px; right: 10px; background: #ff4444; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
-    .deleteBtn:hover { background: #ff6666; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .item { animation: fadeIn 0.35s ease forwards; }
-    @media (max-width: 600px) { h1 { font-size: 1.6rem; } .container { padding: 15px; } button { font-size: 1rem; padding: 10px; } }
-    .countdown { text-align: center; font-size: 1.2rem; margin-bottom: 20px; }
-    .audio-tip { text-align: center; margin: 15px 0; color: #ffb347; font-size: 1rem; }
-  </style>
-</head>
-<body>
+<script type="module">
+  // ----- Importando Firebase -----
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { 
+    getFirestore, collection, addDoc, onSnapshot, serverTimestamp 
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-<!-- Vídeo de fundo -->
-<video class="bg-video" autoplay loop muted playsinline aria-hidden="true">
-  <source src="https://cdn.videvo.net/videvo_files/video/free/2014-12/large_watermarked/Hands_Beer04Videvo_preview.mp4" type="video/mp4">
-</video>
+  // ----- Configuração do Firebase -----
+  const firebaseConfig = {
+    apiKey: "AIzaSyAHP64jj8-5saOazBuRI1BH43DnV4QsljQ",
+    authDomain: "churras-rafa.firebaseapp.com",
+    projectId: "churras-rafa",
+    storageBucket: "churras-rafa.firebasestorage.app",
+    messagingSenderId: "311070733036",
+    appId: "1:311070733036:web:a5743ee2011ccf1d342bc9",
+    measurementId: "G-3C3WJVFYMX"
+  };
 
-<div class="overlay">
-  <div class="container">
-    <h1>🔥 Churrascão da Rafa</h1>
+  // ----- Inicializando -----
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    <div class="countdown" id="countdown">⏳ Contagem regressiva...</div>
+  // ----- Referência da coleção -----
+  const presencasRef = collection(db, "presencas");
 
-    <div class="info" aria-live="polite">
-      📍 <strong>Endereço:</strong> Rua Georgina de Albuquerque, 196<br>
-      📅 <strong>Data:</strong> 13 de Dezembro<br>
-      ⏰ <strong>Horário:</strong> A partir das 19h<br><br>
-      Traga sua bebida de preferencia! 😄🍻🔥
-    </div>
-
-    <!-- Mapa do local: substitua o src pelo embed correto do Google Maps para o endereço desejado -->
-    <iframe
-      src="https://www.google.com/maps?q=Rua+Georgina+de+Albuquerque,+196&output=embed"
-      width="100%" height="250" style="border:0; border-radius:10px; margin-bottom:20px;" allowfullscreen loading="lazy" title="Mapa do local">
-    </iframe>
-
-    <!-- Música brasileira -->
-    <audio id="musica" loop preload="metadata">
-      <source src="samba.mp3" type="audio/mpeg">
-      Seu navegador não suporta áudio.
-    </audio>
-    <div class="audio-tip">
-      🎵 Da play ae:
-      <button type="button" id="play-music-btn">▶️ Play Música</button>
-    </div>
-
-    <label for="nome">Seu nome:</label>
-    <input type="text" id="nome" placeholder="Digite seu nome" />
-
-    <label for="presenca">Você vai?</label>
-    <select id="presenca" aria-label="Presença">
-      <option value="Sim">Sim! Tô dentro 😎🔥</option>
-      <option value="Não">Não vou conseguir ir 😔</option>
-    </select>
-
-    <label for="recado">Deixe um recado:</label>
-    <textarea id="recado" rows="3" placeholder="Ex: Chego mais tarde..."></textarea>
-
-    <button type="button" id="confirm-btn">Confirmar Presença</button>
-
-    <h2 style="margin-bottom:10px;">Confirmações (<span id="contador">0</span>)</h2>
-    <div id="lista" aria-live="polite"></div>
-  </div>
-</div>
-
-<script>
-  // Utilitário para criar cards de forma segura (sem innerHTML com valores do usuário)
-  function criarCard(item, index) {
+  // ----- Renderizar cards -----
+  function criarCard(item) {
     const card = document.createElement("div");
     card.className = "card item";
 
     const nomeEl = document.createElement("strong");
     nomeEl.textContent = item.nome;
 
-    const separador = document.createTextNode(" — ");
-
     const presencaEl = document.createElement("em");
-    presencaEl.textContent = item.presenca;
-
-    const br = document.createElement("br");
+    presencaEl.textContent = ` — ${item.presenca}`;
 
     const recadoEl = document.createElement("p");
     recadoEl.textContent = item.recado || "";
 
-    const del = document.createElement("div");
-    del.className = "deleteBtn";
-    del.textContent = "Apagar";
-    del.setAttribute("role", "button");
-    del.tabIndex = 0;
-    del.addEventListener("click", () => apagar(index));
-    del.addEventListener("keypress", (e) => { if (e.key === "Enter" || e.key === " ") apagar(index); });
-
     card.appendChild(nomeEl);
-    card.appendChild(separador);
     card.appendChild(presencaEl);
-    card.appendChild(br);
+    card.appendChild(document.createElement("br"));
     card.appendChild(recadoEl);
-    card.appendChild(del);
 
     return card;
   }
 
-  // Carrega confirmados e atualiza a lista/contador
-  function carregar() {
-    const dados = JSON.parse(localStorage.getItem("confirmados")) || [];
-    const lista = document.getElementById("lista");
+  // ----- Carregar em tempo real -----
+  const lista = document.getElementById("lista");
+  const contador = document.getElementById("contador");
+
+  onSnapshot(presencasRef, (snapshot) => {
     lista.innerHTML = "";
-    document.getElementById("contador").innerText = dados.length;
+    contador.innerText = snapshot.size;
 
-    dados.forEach((item, index) => {
-      lista.appendChild(criarCard(item, index));
+    snapshot.forEach((doc) => {
+      lista.appendChild(criarCard(doc.data()));
     });
-  }
+  });
 
-  // Confirma presença e dá feedback
-  function confirmar() {
+  // ----- Confirmar presença -----
+  async function confirmar() {
     const nome = document.getElementById("nome").value.trim();
     const presenca = document.getElementById("presenca").value;
     const recado = document.getElementById("recado").value.trim();
     const emojis = ["🍖", "🍺", "🎶", "🔥", "😄", "🥩", "🎉"];
-    const emoji = emojis[Math.floor(Math.random() * emojis.length)];
 
     if (!nome) {
       alert("Coloca seu nome aí, pô! 😄");
       return;
     }
 
-    const dados = JSON.parse(localStorage.getItem("confirmados")) || [];
-    dados.push({ nome, presenca, recado });
-    localStorage.setItem("confirmados", JSON.stringify(dados));
+    try {
+      await addDoc(presencasRef, {
+        nome,
+        presenca,
+        recado,
+        timestamp: serverTimestamp()
+      });
 
-    document.getElementById("nome").value = "";
-    document.getElementById("recado").value = "";
+      document.getElementById("nome").value = "";
+      document.getElementById("recado").value = "";
 
-    carregar();
-    alert(`🎉 Presença confirmada! Valeu por avisar ${emoji}`);
+      alert(`🎉 Presença confirmada! Valeu por avisar ${emojis[Math.floor(Math.random()*emojis.length)]}`);
+    } catch (erro) {
+      console.error("Erro ao salvar:", erro);
+      alert("Ocorreu um erro ao confirmar.");
+    }
   }
 
-  // Apaga uma confirmação pelo índice
-  function apagar(index) {
-    const dados = JSON.parse(localStorage.getItem("confirmados")) || [];
-    if (index < 0 || index >= dados.length) return;
-    dados.splice(index, 1);
-    localStorage.setItem("confirmados", JSON.stringify(dados));
-    carregar();
-  }
-
-  // Contagem regressiva até o evento
+  // ----- Contagem regressiva -----
   function atualizarContagemRegressiva() {
     const evento = new Date("2025-12-13T19:00:00");
     const agora = new Date();
     const diff = evento - agora;
 
     const el = document.getElementById("countdown");
+
     if (diff <= 0) {
       el.innerText = "🎉 Já começou!";
       return;
@@ -188,41 +109,35 @@
     el.innerText = `⏳ Faltam ${dias}d ${horas}h ${minutos}m ${segundos}s`;
   }
 
-  // Botão para tocar música a partir de 30s (evita bloqueio de autoplay)
+  // ----- Música -----
   function playMusica() {
     const musica = document.getElementById("musica");
-    // Se a duração não estiver disponível, aguardar loadedmetadata
-    function trySeekAndPlay() {
+
+    function tentar() {
       try {
         if (typeof musica.duration === "number" && musica.duration > 0) {
           musica.currentTime = Math.min(30, musica.duration);
         } else {
-          // se duration é 0 ou NaN, tenta definir 0
           musica.currentTime = 0;
         }
-      } catch (e) {
-        // alguns navegadores só permitem setar currentTime após metadata carregada
-      }
+      } catch {}
+
       musica.play().catch(() => {
-        alert("Seu navegador bloqueou o áudio. Tente clicar novamente.");
+        alert("Seu navegador bloqueou o áudio. Tente clicar de novo.");
       });
     }
 
     if (!isFinite(musica.duration) || musica.duration === 0) {
-      musica.addEventListener("loadedmetadata", trySeekAndPlay, { once: true });
+      musica.addEventListener("loadedmetadata", tentar, { once: true });
     } else {
-      trySeekAndPlay();
+      tentar();
     }
   }
 
-  // Inicialização - listeners
+  // ----- Eventos -----
   document.getElementById("confirm-btn").addEventListener("click", confirmar);
   document.getElementById("play-music-btn").addEventListener("click", playMusica);
 
-  carregar();
   atualizarContagemRegressiva();
   setInterval(atualizarContagemRegressiva, 1000);
 </script>
-
-</body>
-</html>
